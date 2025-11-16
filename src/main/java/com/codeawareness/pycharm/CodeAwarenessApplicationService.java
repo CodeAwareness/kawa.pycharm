@@ -86,6 +86,11 @@ public final class CodeAwarenessApplicationService implements Disposable {
 
     /**
      * Initialize and connect to Code Awareness backend.
+     * Connection flow:
+     * 1. Connect to catalog service
+     * 2. Register client with catalog
+     * 3. Wait for IPC socket to become available
+     * 4. Connect to IPC service
      */
     public void connect() {
         if (connected) {
@@ -94,7 +99,25 @@ public final class CodeAwarenessApplicationService implements Disposable {
         }
 
         Logger.info("Connecting to Code Awareness backend...");
-        // Connection logic will be implemented in Phase 1.4
+
+        try {
+            // Step 1: Connect to catalog and register
+            catalogConnection = new CatalogConnection(clientGuid);
+            catalogConnection.connect();
+
+            // Step 2: Connect to IPC service (will wait for socket)
+            ipcConnection = new IpcConnection(clientGuid, responseHandlerRegistry);
+            ipcConnection.connect();
+
+            connected = true;
+            Logger.info("Successfully connected to Code Awareness backend");
+
+        } catch (Exception e) {
+            Logger.error("Failed to connect to Code Awareness backend", e);
+            // Clean up on failure
+            disconnect();
+            throw new RuntimeException("Failed to connect to Code Awareness", e);
+        }
     }
 
     /**
