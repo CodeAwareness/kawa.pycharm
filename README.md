@@ -77,6 +77,7 @@ Example message:
   },
   "caw": "client-guid"
 }
+```
 
 Getting Started
 For Developers
