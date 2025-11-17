@@ -27,17 +27,24 @@
         <applicationService
                 serviceImplementation="com.codeawareness.pycharm.CodeAwarenessApplicationService"/>
 
+        <!-- Settings service -->
+        <applicationService
+                serviceImplementation="com.codeawareness.pycharm.settings.CodeAwarenessSettings"/>
+
         <!-- Project-level service -->
         <projectService
                 serviceImplementation="com.codeawareness.pycharm.CodeAwarenessProjectService"/>
 
-        <!-- Settings -->
+        <!-- Settings UI -->
         <projectConfigurable
                 instance="com.codeawareness.pycharm.settings.CodeAwarenessConfigurable"/>
 
         <!-- Status Bar Widget -->
         <statusBarWidgetFactory
                 implementation="com.codeawareness.pycharm.ui.CodeAwarenessStatusBarWidget"/>
+
+        <!-- Notification Group -->
+        <notificationGroup id="Code Awareness" displayType="BALLOON"/>
     </extensions>
 
     <applicationListeners>
