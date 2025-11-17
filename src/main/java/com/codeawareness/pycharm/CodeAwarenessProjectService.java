@@ -16,6 +16,7 @@ import com.intellij.openapi.editor.RangeMarker;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -84,14 +85,11 @@ public final class CodeAwarenessProjectService implements Disposable {
             }
 
             // Build auth:info request
-            Message message = new MessageBuilder()
-                .setAction("auth:info")
-                .setFlow("request")
-                .build();
+            Message message = MessageBuilder.buildAuthInfo(appService.getClientGuid());
 
             // Send via IPC connection
             if (appService.getIpcConnection() != null) {
-                appService.getIpcConnection().send(message);
+                appService.getIpcConnection().sendMessage(message);
                 Logger.debug("Sent auth:info request");
             }
 
