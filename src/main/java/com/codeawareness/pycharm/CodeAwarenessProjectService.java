@@ -1,9 +1,16 @@
 package com.codeawareness.pycharm;
 
+import com.codeawareness.pycharm.communication.Message;
+import com.codeawareness.pycharm.communication.MessageBuilder;
+import com.codeawareness.pycharm.events.handlers.AuthInfoHandler;
+import com.codeawareness.pycharm.events.handlers.BranchSelectHandler;
+import com.codeawareness.pycharm.events.handlers.PeerSelectHandler;
+import com.codeawareness.pycharm.events.handlers.PeerUnselectHandler;
 import com.codeawareness.pycharm.monitoring.ActiveFileTracker;
 import com.codeawareness.pycharm.monitoring.FileMonitor;
 import com.codeawareness.pycharm.utils.Logger;
 import com.intellij.openapi.Disposable;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.Service;
 import com.intellij.openapi.editor.RangeMarker;
 import com.intellij.openapi.project.Project;
@@ -37,6 +44,60 @@ public final class CodeAwarenessProjectService implements Disposable {
         this.fileMonitor = new FileMonitor(project);
         this.activeFileTracker = new ActiveFileTracker(project);
         Logger.info("Code Awareness Project Service initialized for project: " + project.getName());
+
+        // Register event handlers
+        registerEventHandlers();
+
+        // Request authentication info
+        requestAuthInfo();
+    }
+
+    /**
+     * Register all project-level event handlers with the application-level event dispatcher.
+     */
+    private void registerEventHandlers() {
+        CodeAwarenessApplicationService appService =
+            ApplicationManager.getApplication().getService(CodeAwarenessApplicationService.class);
+
+        if (appService != null) {
+            // Register handlers for this project
+            appService.getEventDispatcher().registerHandler(new AuthInfoHandler(project));
+            appService.getEventDispatcher().registerHandler(new PeerSelectHandler(project));
+            appService.getEventDispatcher().registerHandler(new PeerUnselectHandler(project));
+            appService.getEventDispatcher().registerHandler(new BranchSelectHandler(project));
+
+            Logger.debug("Registered event handlers for project: " + project.getName());
+        }
+    }
+
+    /**
+     * Request authentication info from the backend.
+     */
+    public void requestAuthInfo() {
+        try {
+            CodeAwarenessApplicationService appService =
+                ApplicationManager.getApplication().getService(CodeAwarenessApplicationService.class);
+
+            if (appService == null || !appService.isConnected()) {
+                Logger.debug("Cannot request auth info: not connected");
+                return;
+            }
+
+            // Build auth:info request
+            Message message = new MessageBuilder()
+                .setAction("auth:info")
+                .setFlow("request")
+                .build();
+
+            // Send via IPC connection
+            if (appService.getIpcConnection() != null) {
+                appService.getIpcConnection().send(message);
+                Logger.debug("Sent auth:info request");
+            }
+
+        } catch (Exception e) {
+            Logger.warn("Failed to request auth info", e);
+        }
     }
 
     public Project getProject() {
