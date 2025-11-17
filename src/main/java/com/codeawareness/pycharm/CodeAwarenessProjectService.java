@@ -6,6 +6,7 @@ import com.codeawareness.pycharm.events.handlers.AuthInfoHandler;
 import com.codeawareness.pycharm.events.handlers.BranchSelectHandler;
 import com.codeawareness.pycharm.events.handlers.PeerSelectHandler;
 import com.codeawareness.pycharm.events.handlers.PeerUnselectHandler;
+import com.codeawareness.pycharm.highlighting.HighlightManager;
 import com.codeawareness.pycharm.monitoring.ActiveFileTracker;
 import com.codeawareness.pycharm.monitoring.FileMonitor;
 import com.codeawareness.pycharm.utils.Logger;
@@ -31,6 +32,7 @@ public final class CodeAwarenessProjectService implements Disposable {
     private final Project project;
     private final FileMonitor fileMonitor;
     private final ActiveFileTracker activeFileTracker;
+    private final HighlightManager highlightManager;
     private VirtualFile activeFile;
     private String selectedPeer;
     private String selectedBranch;
@@ -44,6 +46,7 @@ public final class CodeAwarenessProjectService implements Disposable {
         this.project = project;
         this.fileMonitor = new FileMonitor(project);
         this.activeFileTracker = new ActiveFileTracker(project);
+        this.highlightManager = new HighlightManager(project);
         Logger.info("Code Awareness Project Service initialized for project: " + project.getName());
 
         // Register event handlers
@@ -174,10 +177,15 @@ public final class CodeAwarenessProjectService implements Disposable {
         return activeFileTracker;
     }
 
+    public HighlightManager getHighlightManager() {
+        return highlightManager;
+    }
+
     @Override
     public void dispose() {
         Logger.info("Disposing Code Awareness Project Service for project: " + project.getName());
         clearHighlighters();
+        highlightManager.clearAllHighlights();
         fileMonitor.shutdown();
         activeFileTracker.shutdown();
     }
