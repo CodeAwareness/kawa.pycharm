@@ -1,5 +1,6 @@
 package com.codeawareness.pycharm;
 
+import com.codeawareness.pycharm.monitoring.ActiveFileTracker;
 import com.codeawareness.pycharm.monitoring.FileMonitor;
 import com.codeawareness.pycharm.utils.Logger;
 import com.intellij.openapi.Disposable;
@@ -21,6 +22,7 @@ public final class CodeAwarenessProjectService implements Disposable {
 
     private final Project project;
     private final FileMonitor fileMonitor;
+    private final ActiveFileTracker activeFileTracker;
     private VirtualFile activeFile;
     private String selectedPeer;
     private String selectedBranch;
@@ -33,6 +35,7 @@ public final class CodeAwarenessProjectService implements Disposable {
     public CodeAwarenessProjectService(Project project) {
         this.project = project;
         this.fileMonitor = new FileMonitor(project);
+        this.activeFileTracker = new ActiveFileTracker(project);
         Logger.info("Code Awareness Project Service initialized for project: " + project.getName());
     }
 
@@ -108,10 +111,15 @@ public final class CodeAwarenessProjectService implements Disposable {
         return fileMonitor;
     }
 
+    public ActiveFileTracker getActiveFileTracker() {
+        return activeFileTracker;
+    }
+
     @Override
     public void dispose() {
         Logger.info("Disposing Code Awareness Project Service for project: " + project.getName());
         clearHighlighters();
         fileMonitor.shutdown();
+        activeFileTracker.shutdown();
     }
 }
