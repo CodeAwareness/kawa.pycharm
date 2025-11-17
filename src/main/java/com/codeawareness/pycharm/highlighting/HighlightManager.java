@@ -41,7 +41,7 @@ public class HighlightManager {
      * @param lineNumber Line number (0-indexed)
      */
     public void addHighlight(String filePath, int lineNumber) {
-        ApplicationManager.getApplication().invokeLater(() -> {
+        runOnUiThread(() -> {
             try {
                 VirtualFile file = com.intellij.openapi.vfs.VfsUtil.findFileByIoFile(
                     new java.io.File(filePath), true
@@ -99,7 +99,7 @@ public class HighlightManager {
      * @param filePath Absolute path to the file
      */
     public void clearHighlights(String filePath) {
-        ApplicationManager.getApplication().invokeLater(() -> {
+        runOnUiThread(() -> {
             List<RangeHighlighter> highlighters = highlightersByFile.remove(filePath);
             if (highlighters != null) {
                 for (RangeHighlighter highlighter : highlighters) {
@@ -116,7 +116,7 @@ public class HighlightManager {
      * Remove all highlights from all files.
      */
     public void clearAllHighlights() {
-        ApplicationManager.getApplication().invokeLater(() -> {
+        runOnUiThread(() -> {
             int totalCleared = 0;
             for (Map.Entry<String, List<RangeHighlighter>> entry : highlightersByFile.entrySet()) {
                 for (RangeHighlighter highlighter : entry.getValue()) {
@@ -141,7 +141,7 @@ public class HighlightManager {
     public void setHighlightsEnabled(boolean enabled) {
         this.highlightsEnabled = enabled;
 
-        ApplicationManager.getApplication().invokeLater(() -> {
+        runOnUiThread(() -> {
             if (!enabled) {
                 // Hide all highlights by clearing them
                 clearAllHighlights();
@@ -162,6 +162,10 @@ public class HighlightManager {
      */
     private Editor getEditorForFile(VirtualFile file) {
         FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
+        if (fileEditorManager == null) {
+            return null;
+        }
+
         FileEditor[] editors = fileEditorManager.getEditors(file);
 
         for (FileEditor fileEditor : editors) {
@@ -188,5 +192,14 @@ public class HighlightManager {
         return highlightersByFile.values().stream()
             .mapToInt(List::size)
             .sum();
+    }
+
+    private void runOnUiThread(Runnable action) {
+        var application = ApplicationManager.getApplication();
+        if (application != null) {
+            application.invokeLater(action);
+        } else {
+            action.run();
+        }
     }
 }

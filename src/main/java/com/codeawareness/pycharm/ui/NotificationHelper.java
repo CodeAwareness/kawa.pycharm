@@ -1,6 +1,7 @@
 package com.codeawareness.pycharm.ui;
 
 import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationGroup;
 import com.intellij.notification.NotificationGroupManager;
 import com.intellij.notification.NotificationType;
 import com.intellij.openapi.project.Project;
@@ -62,10 +63,22 @@ public class NotificationHelper {
      * Show a notification.
      */
     private static void showNotification(String title, String content, NotificationType type, @Nullable Project project) {
-        Notification notification = NotificationGroupManager.getInstance()
-            .getNotificationGroup(NOTIFICATION_GROUP_ID)
-            .createNotification(title, content, type);
+        try {
+            NotificationGroupManager manager = NotificationGroupManager.getInstance();
+            if (manager == null) {
+                return;
+            }
 
-        notification.notify(project);
+            NotificationGroup group = manager.getNotificationGroup(NOTIFICATION_GROUP_ID);
+            if (group == null) {
+                return;
+            }
+
+            Notification notification = group.createNotification(title, content, type);
+
+            notification.notify(project);
+        } catch (Throwable ignored) {
+            // Headless/unit-test environment: silently ignore notification attempts
+        }
     }
 }

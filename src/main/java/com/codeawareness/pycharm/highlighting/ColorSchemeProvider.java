@@ -12,19 +12,35 @@ import java.awt.Color;
  */
 public class ColorSchemeProvider {
 
+    private static final Color LIGHT_THEME_COLOR = new Color(0xff, 0xdd, 0x34);
+    private static final Color DARK_THEME_COLOR = new Color(0x1f, 0x1c, 0xc2);
+
     /**
      * Get the highlight color for the current theme.
      * Light theme: #ffdd34 (yellow)
      * Dark theme: #1f1cc2 (blue)
      */
     public static Color getHighlightColor() {
-        EditorColorsScheme scheme = EditorColorsManager.getInstance().getGlobalScheme();
+        try {
+            EditorColorsManager manager = EditorColorsManager.getInstance();
+            if (manager == null) {
+                return LIGHT_THEME_COLOR;
+            }
 
-        // Check if using dark theme
-        if (isDarkTheme(scheme)) {
-            return new Color(0x1f, 0x1c, 0xc2); // Blue for dark theme
-        } else {
-            return new Color(0xff, 0xdd, 0x34); // Yellow for light theme
+            EditorColorsScheme scheme = manager.getGlobalScheme();
+            if (scheme == null) {
+                return LIGHT_THEME_COLOR;
+            }
+
+            // Check if using dark theme
+            if (isDarkTheme(scheme)) {
+                return DARK_THEME_COLOR; // Blue for dark theme
+            } else {
+                return LIGHT_THEME_COLOR; // Yellow for light theme
+            }
+        } catch (Throwable ignored) {
+            // In headless/unit-test environments the IntelliJ services might not be available.
+            return LIGHT_THEME_COLOR;
         }
     }
 
@@ -33,8 +49,8 @@ public class ColorSchemeProvider {
      */
     public static JBColor getHighlightJBColor() {
         return new JBColor(
-            new Color(0xff, 0xdd, 0x34), // Light theme: yellow
-            new Color(0x1f, 0x1c, 0xc2)  // Dark theme: blue
+            LIGHT_THEME_COLOR, // Light theme: yellow
+            DARK_THEME_COLOR   // Dark theme: blue
         );
     }
 
@@ -43,6 +59,9 @@ public class ColorSchemeProvider {
      */
     private static boolean isDarkTheme(EditorColorsScheme scheme) {
         Color backgroundColor = scheme.getDefaultBackground();
+        if (backgroundColor == null) {
+            return false;
+        }
 
         // Calculate luminance to determine if dark theme
         // Dark theme has low luminance (closer to 0)
