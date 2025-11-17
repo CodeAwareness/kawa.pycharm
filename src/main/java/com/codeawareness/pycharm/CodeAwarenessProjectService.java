@@ -2,8 +2,11 @@ package com.codeawareness.pycharm;
 
 import com.codeawareness.pycharm.communication.Message;
 import com.codeawareness.pycharm.communication.MessageBuilder;
+import com.codeawareness.pycharm.diff.DiffViewerManager;
+import com.codeawareness.pycharm.diff.TempFileManager;
 import com.codeawareness.pycharm.events.handlers.AuthInfoHandler;
 import com.codeawareness.pycharm.events.handlers.BranchSelectHandler;
+import com.codeawareness.pycharm.events.handlers.DiffPeerHandler;
 import com.codeawareness.pycharm.events.handlers.PeerSelectHandler;
 import com.codeawareness.pycharm.events.handlers.PeerUnselectHandler;
 import com.codeawareness.pycharm.highlighting.HighlightManager;
@@ -33,6 +36,8 @@ public final class CodeAwarenessProjectService implements Disposable {
     private final FileMonitor fileMonitor;
     private final ActiveFileTracker activeFileTracker;
     private final HighlightManager highlightManager;
+    private final TempFileManager tempFileManager;
+    private final DiffViewerManager diffViewerManager;
     private VirtualFile activeFile;
     private String selectedPeer;
     private String selectedBranch;
@@ -47,6 +52,8 @@ public final class CodeAwarenessProjectService implements Disposable {
         this.fileMonitor = new FileMonitor(project);
         this.activeFileTracker = new ActiveFileTracker(project);
         this.highlightManager = new HighlightManager(project);
+        this.tempFileManager = new TempFileManager(null); // Will be updated when tmpDir is received
+        this.diffViewerManager = new DiffViewerManager(project, tempFileManager);
         Logger.info("Code Awareness Project Service initialized for project: " + project.getName());
 
         // Register event handlers
@@ -69,6 +76,7 @@ public final class CodeAwarenessProjectService implements Disposable {
             appService.getEventDispatcher().registerHandler(new PeerSelectHandler(project));
             appService.getEventDispatcher().registerHandler(new PeerUnselectHandler(project));
             appService.getEventDispatcher().registerHandler(new BranchSelectHandler(project));
+            appService.getEventDispatcher().registerHandler(new DiffPeerHandler(project, diffViewerManager));
 
             Logger.debug("Registered event handlers for project: " + project.getName());
         }
@@ -98,6 +106,41 @@ public final class CodeAwarenessProjectService implements Disposable {
 
         } catch (Exception e) {
             Logger.warn("Failed to request auth info", e);
+        }
+    }
+
+    /**
+     * Request a diff with a peer for a specific file.
+     *
+     * @param filePath Path to the file
+     * @param peerGuid GUID of the peer
+     */
+    public void requestDiffWithPeer(String filePath, String peerGuid) {
+        try {
+            CodeAwarenessApplicationService appService =
+                ApplicationManager.getApplication().getService(CodeAwarenessApplicationService.class);
+
+            if (appService == null || !appService.isConnected()) {
+                Logger.debug("Cannot request diff: not connected");
+                return;
+            }
+
+            // Build diff-peer request
+            Message message = MessageBuilder.buildDiffPeer(
+                appService.getClientGuid(),
+                "local", // origin
+                filePath,
+                peerGuid
+            );
+
+            // Send via IPC connection
+            if (appService.getIpcConnection() != null) {
+                appService.getIpcConnection().sendMessage(message);
+                Logger.debug("Sent diff-peer request for: " + filePath);
+            }
+
+        } catch (Exception e) {
+            Logger.warn("Failed to request diff", e);
         }
     }
 
@@ -181,11 +224,20 @@ public final class CodeAwarenessProjectService implements Disposable {
         return highlightManager;
     }
 
+    public DiffViewerManager getDiffViewerManager() {
+        return diffViewerManager;
+    }
+
+    public TempFileManager getTempFileManager() {
+        return tempFileManager;
+    }
+
     @Override
     public void dispose() {
         Logger.info("Disposing Code Awareness Project Service for project: " + project.getName());
         clearHighlighters();
         highlightManager.clearAllHighlights();
+        diffViewerManager.cleanupAll();
         fileMonitor.shutdown();
         activeFileTracker.shutdown();
     }
