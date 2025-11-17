@@ -45,6 +45,13 @@ public class Logger {
     }
 
     /**
+     * Log a warning message with exception.
+     */
+    public static void warn(String message, Throwable throwable) {
+        LOG.warn("[Code Awareness] " + message, throwable);
+    }
+
+    /**
      * Log an info message.
      */
     public static void info(String message) {
@@ -57,6 +64,15 @@ public class Logger {
     public static void debug(String message) {
         if (debugEnabled) {
             LOG.debug("[Code Awareness] " + message);
+        }
+    }
+
+    /**
+     * Log a debug message with exception (only if debug is enabled).
+     */
+    public static void debug(String message, Throwable throwable) {
+        if (debugEnabled) {
+            LOG.debug("[Code Awareness] " + message, throwable);
         }
     }
 

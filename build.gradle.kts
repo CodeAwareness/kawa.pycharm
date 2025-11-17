@@ -20,6 +20,11 @@ dependencies {
     testImplementation("org.mockito:mockito-core:5.5.0")
 }
 
+// Exclude Kotlin stdlib to avoid conflicts with IntelliJ Platform version
+configurations.all {
+    exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
+}
+
 // Configure Gradle IntelliJ Plugin
 intellij {
     version.set("2023.3")
