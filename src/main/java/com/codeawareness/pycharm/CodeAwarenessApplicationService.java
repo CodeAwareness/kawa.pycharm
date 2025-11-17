@@ -2,6 +2,7 @@ package com.codeawareness.pycharm;
 
 import com.codeawareness.pycharm.communication.CatalogConnection;
 import com.codeawareness.pycharm.communication.IpcConnection;
+import com.codeawareness.pycharm.events.EventDispatcher;
 import com.codeawareness.pycharm.events.ResponseHandlerRegistry;
 import com.codeawareness.pycharm.utils.GuidGenerator;
 import com.codeawareness.pycharm.utils.Logger;
@@ -20,11 +21,13 @@ public final class CodeAwarenessApplicationService implements Disposable {
     private CatalogConnection catalogConnection;
     private IpcConnection ipcConnection;
     private final ResponseHandlerRegistry responseHandlerRegistry;
+    private final EventDispatcher eventDispatcher;
     private volatile boolean connected = false;
 
     public CodeAwarenessApplicationService() {
         this.clientGuid = GuidGenerator.generate();
         this.responseHandlerRegistry = new ResponseHandlerRegistry();
+        this.eventDispatcher = new EventDispatcher();
         Logger.info("Code Awareness Application Service initialized with GUID: " + clientGuid);
     }
 
@@ -71,6 +74,13 @@ public final class CodeAwarenessApplicationService implements Disposable {
     }
 
     /**
+     * Get the event dispatcher.
+     */
+    public EventDispatcher getEventDispatcher() {
+        return eventDispatcher;
+    }
+
+    /**
      * Check if connected to Code Awareness backend.
      */
     public boolean isConnected() {
@@ -107,6 +117,12 @@ public final class CodeAwarenessApplicationService implements Disposable {
 
             // Step 2: Connect to IPC service (will wait for socket)
             ipcConnection = new IpcConnection(clientGuid, responseHandlerRegistry);
+
+            // Set up message callback to use event dispatcher
+            ipcConnection.setMessageCallback(message -> {
+                eventDispatcher.dispatch(message);
+            });
+
             ipcConnection.connect();
 
             connected = true;
