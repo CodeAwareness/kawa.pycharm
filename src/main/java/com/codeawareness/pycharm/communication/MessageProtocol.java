@@ -111,9 +111,15 @@ public class MessageProtocol {
             Logger.trace("Deserialized message: " + message);
             return message;
         } catch (JsonSyntaxException e) {
-            Logger.error("Invalid JSON syntax: " + json, e);
+            // Invalid JSON is an expected error condition, don't log as error
+            Logger.debug("Invalid JSON syntax: " + json);
             throw new IllegalArgumentException("Invalid JSON syntax", e);
+        } catch (IllegalArgumentException e) {
+            // Missing required fields is an expected error condition
+            Logger.debug("Invalid message: " + e.getMessage());
+            throw e;
         } catch (Exception e) {
+            // Unexpected errors should still be logged
             Logger.error("Failed to deserialize message: " + json, e);
             throw new RuntimeException("Failed to deserialize message", e);
         }

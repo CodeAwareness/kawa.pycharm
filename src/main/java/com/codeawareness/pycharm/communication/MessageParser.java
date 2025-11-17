@@ -50,7 +50,10 @@ public class MessageParser {
                 messages.add(message);
                 Logger.debug("Parsed message: " + message.getAction());
             } catch (Exception e) {
-                Logger.error("Failed to parse message: " + messageJson, e);
+                // Invalid messages are skipped - this is expected behavior
+                // Use warn instead of error since we handle it gracefully
+                Logger.warn("Skipping invalid message: " + e.getMessage());
+                Logger.debug("Invalid message content: " + messageJson);
                 // Continue processing other messages
             }
         }

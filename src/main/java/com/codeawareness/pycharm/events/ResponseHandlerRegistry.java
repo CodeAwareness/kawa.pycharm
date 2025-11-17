@@ -54,7 +54,10 @@ public class ResponseHandlerRegistry {
             Logger.debug("Handled response for key: " + key);
             return true;
         } catch (Exception e) {
-            Logger.error("Error handling response for key: " + key, e);
+            // Handler exceptions are caught and logged, but not fatal
+            // Use warn instead of error since we handle it gracefully
+            Logger.warn("Error in response handler for key: " + key + " - " + e.getMessage());
+            Logger.debug("Handler exception details", e);
             return false;
         }
     }
