@@ -14,7 +14,8 @@ public class MessageBuilder {
     private JsonElement data;
     private String caw;
 
-    private MessageBuilder() {
+    // Package-private constructor to allow testing
+    MessageBuilder() {
     }
 
     /**

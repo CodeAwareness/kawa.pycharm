@@ -1,14 +1,12 @@
 package com.codeawareness.pycharm.utils;
 
-import com.intellij.openapi.diagnostic.Logger as IntellijLogger;
-
 /**
  * Logging utility for Code Awareness plugin.
  * Wraps IntelliJ's Logger for consistent logging throughout the plugin.
  */
 public class Logger {
 
-    private static final IntellijLogger LOG = IntellijLogger.getInstance(Logger.class);
+    private static final com.intellij.openapi.diagnostic.Logger LOG = com.intellij.openapi.diagnostic.Logger.getInstance(Logger.class);
     private static boolean debugEnabled = false;
 
     /**
