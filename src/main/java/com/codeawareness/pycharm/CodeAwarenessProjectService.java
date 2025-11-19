@@ -15,6 +15,8 @@ import com.codeawareness.pycharm.events.handlers.PeerUnselectHandler;
 import com.codeawareness.pycharm.highlighting.HighlightManager;
 import com.codeawareness.pycharm.monitoring.ActiveFileTracker;
 import com.codeawareness.pycharm.monitoring.FileMonitor;
+import com.codeawareness.pycharm.settings.CodeAwarenessSettings;
+import com.codeawareness.pycharm.settings.SettingsChangeListener;
 import com.codeawareness.pycharm.utils.Logger;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
@@ -35,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Each project has its own instance of this service.
  */
 @Service(Service.Level.PROJECT)
-public final class CodeAwarenessProjectService implements Disposable {
+public final class CodeAwarenessProjectService implements Disposable, SettingsChangeListener {
 
     private final Project project;
     private final FileMonitor fileMonitor;
@@ -64,6 +66,10 @@ public final class CodeAwarenessProjectService implements Disposable {
 
         // Register event handlers
         registerEventHandlers();
+
+        // Register for settings change notifications
+        CodeAwarenessSettings settings = CodeAwarenessSettings.getInstance();
+        settings.addSettingsChangeListener(this);
 
         // Request authentication info
         requestAuthInfo();
@@ -258,8 +264,26 @@ public final class CodeAwarenessProjectService implements Disposable {
     }
 
     @Override
+    public void onColorSettingsChanged() {
+        // Refresh all highlights with the new colors
+        Logger.info("Color settings changed, refreshing highlights for project: " + project.getName());
+        highlightManager.refreshHighlightColors();
+    }
+
+    @Override
+    public void onHighlightsEnabledChanged(boolean enabled) {
+        // Update highlight visibility
+        Logger.info("Highlights enabled changed to: " + enabled + " for project: " + project.getName());
+        highlightManager.setHighlightsEnabled(enabled);
+    }
+
+    @Override
     public void dispose() {
         Logger.info("Disposing Code Awareness Project Service for project: " + project.getName());
+
+        // Unregister settings change listener
+        CodeAwarenessSettings settings = CodeAwarenessSettings.getInstance();
+        settings.removeSettingsChangeListener(this);
 
         // Unregister event handlers
         CodeAwarenessApplicationService appService =

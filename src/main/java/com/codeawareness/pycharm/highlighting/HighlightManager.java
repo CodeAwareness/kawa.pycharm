@@ -149,6 +149,64 @@ public class HighlightManager {
     }
 
     /**
+     * Refresh all existing highlights with updated colors.
+     * This recreates all highlights using the current color scheme settings.
+     */
+    public void refreshHighlightColors() {
+        runOnUiThread(() -> {
+            try {
+                // Store all current highlights with their file paths and line numbers
+                Map<String, List<Integer>> lineNumbersByFile = new ConcurrentHashMap<>();
+
+                for (Map.Entry<String, List<RangeHighlighter>> entry : this.highlightersByFile.entrySet()) {
+                    String filePath = entry.getKey();
+                    List<Integer> lineNumbers = new ArrayList<>();
+
+                    for (RangeHighlighter highlighter : entry.getValue()) {
+                        if (highlighter.isValid()) {
+                            // Get the document to find line number from offset
+                            Document document = highlighter.getDocument();
+                            if (document != null) {
+                                int lineNumber = document.getLineNumber(highlighter.getStartOffset());
+                                lineNumbers.add(lineNumber);
+                            }
+                        }
+                    }
+
+                    if (!lineNumbers.isEmpty()) {
+                        lineNumbersByFile.put(filePath, lineNumbers);
+                    }
+                }
+
+                // Clear all existing highlights
+                for (Map.Entry<String, List<RangeHighlighter>> entry : this.highlightersByFile.entrySet()) {
+                    for (RangeHighlighter highlighter : entry.getValue()) {
+                        if (highlighter.isValid()) {
+                            highlighter.dispose();
+                        }
+                    }
+                }
+                this.highlightersByFile.clear();
+
+                // Recreate highlights with new colors
+                int totalRefreshed = 0;
+                for (Map.Entry<String, List<Integer>> entry : lineNumbersByFile.entrySet()) {
+                    String filePath = entry.getKey();
+                    for (Integer lineNumber : entry.getValue()) {
+                        addHighlight(filePath, lineNumber);
+                        totalRefreshed++;
+                    }
+                }
+
+                Logger.info("Refreshed " + totalRefreshed + " highlights with new colors");
+
+            } catch (Exception e) {
+                Logger.warn("Failed to refresh highlight colors", e);
+            }
+        });
+    }
+
+    /**
      * Check if highlights are currently enabled.
      */
     public boolean isHighlightsEnabled() {

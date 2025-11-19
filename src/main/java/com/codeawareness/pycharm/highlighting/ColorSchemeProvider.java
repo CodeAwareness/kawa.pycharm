@@ -1,5 +1,6 @@
 package com.codeawareness.pycharm.highlighting;
 
+import com.codeawareness.pycharm.settings.CodeAwarenessSettings;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.ui.JBColor;
@@ -8,39 +9,39 @@ import java.awt.Color;
 
 /**
  * Provides colors for Code Awareness highlights based on the current editor theme.
- * Supports both light and dark themes.
+ * Supports both light and dark themes with user-configurable colors.
  */
 public class ColorSchemeProvider {
 
-    private static final Color LIGHT_THEME_COLOR = new Color(0xff, 0xea, 0x83);
-    private static final Color DARK_THEME_COLOR = new Color(0x0a, 0x07, 0x1d);
+    // Fallback defaults (used when settings service is unavailable)
+    private static final Color DEFAULT_LIGHT_THEME_COLOR = new Color(0xff, 0xea, 0x83);
+    private static final Color DEFAULT_DARK_THEME_COLOR = new Color(0x0a, 0x07, 0x1d);
 
     /**
      * Get the highlight color for the current theme.
-     * Light theme: #ffdd34 (yellow)
-     * Dark theme: #1f1cc2 (blue)
+     * Reads user-configured colors from settings.
      */
     public static Color getHighlightColor() {
         try {
             EditorColorsManager manager = EditorColorsManager.getInstance();
             if (manager == null) {
-                return LIGHT_THEME_COLOR;
+                return getLightThemeColor();
             }
 
             EditorColorsScheme scheme = manager.getGlobalScheme();
             if (scheme == null) {
-                return LIGHT_THEME_COLOR;
+                return getLightThemeColor();
             }
 
             // Check if using dark theme
             if (isDarkTheme(scheme)) {
-                return DARK_THEME_COLOR; // Blue for dark theme
+                return getDarkThemeColor();
             } else {
-                return LIGHT_THEME_COLOR; // Yellow for light theme
+                return getLightThemeColor();
             }
         } catch (Throwable ignored) {
             // In headless/unit-test environments the IntelliJ services might not be available.
-            return LIGHT_THEME_COLOR;
+            return getLightThemeColor();
         }
     }
 
@@ -49,9 +50,44 @@ public class ColorSchemeProvider {
      */
     public static JBColor getHighlightJBColor() {
         return new JBColor(
-            LIGHT_THEME_COLOR, // Light theme: yellow
-            DARK_THEME_COLOR   // Dark theme: blue
+            getLightThemeColor(),
+            getDarkThemeColor()
         );
+    }
+
+    /**
+     * Get the light theme color from settings.
+     */
+    private static Color getLightThemeColor() {
+        try {
+            CodeAwarenessSettings settings = CodeAwarenessSettings.getInstance();
+            return parseColor(settings.getLightThemeColor());
+        } catch (Throwable ignored) {
+            return DEFAULT_LIGHT_THEME_COLOR;
+        }
+    }
+
+    /**
+     * Get the dark theme color from settings.
+     */
+    private static Color getDarkThemeColor() {
+        try {
+            CodeAwarenessSettings settings = CodeAwarenessSettings.getInstance();
+            return parseColor(settings.getDarkThemeColor());
+        } catch (Throwable ignored) {
+            return DEFAULT_DARK_THEME_COLOR;
+        }
+    }
+
+    /**
+     * Parse hex color string (without #) to Color object.
+     */
+    private static Color parseColor(String hex) {
+        try {
+            return Color.decode("#" + hex);
+        } catch (NumberFormatException e) {
+            return DEFAULT_LIGHT_THEME_COLOR;
+        }
     }
 
     /**

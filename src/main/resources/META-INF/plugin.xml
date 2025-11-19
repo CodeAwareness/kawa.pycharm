@@ -36,7 +36,8 @@
                 serviceImplementation="com.codeawareness.pycharm.CodeAwarenessProjectService"/>
 
         <!-- Settings UI -->
-        <projectConfigurable
+        <applicationConfigurable
+                parentId="tools"
                 instance="com.codeawareness.pycharm.settings.CodeAwarenessConfigurable"/>
 
         <!-- Status Bar Widget -->
