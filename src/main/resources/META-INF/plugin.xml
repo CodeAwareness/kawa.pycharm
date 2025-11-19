@@ -1,0 +1,90 @@
+<idea-plugin>
+    <id>com.codeawareness.pycharm</id>
+    <name>Code Awareness</name>
+    <vendor email="support@codeawareness.com" url="https://codeawareness.com">Code Awareness Team</vendor>
+
+    <description><![CDATA[
+    <h1>Code Awareness for PyCharm</h1>
+    <p>Real-time team collaboration for PyCharm developers.</p>
+    <p>See code intersections, conflicts, and overlaps with teammates before committing changes.</p>
+
+    <h2>Key Features:</h2>
+    <ul>
+        <li><b>Real-time Peer Code Highlighting</b> - See which lines your teammates are modifying</li>
+        <li><b>Conflict Detection</b> - Identify merge conflicts before they happen</li>
+        <li><b>Overlap Detection</b> - Find overlapping changes across team members</li>
+        <li><b>Side-by-Side Diff Viewing</b> - Compare your code with teammates' versions</li>
+        <li><b>Branch Comparison</b> - Compare your working copy against other branches</li>
+        <li><b>Low-Noise Design</b> - Non-intrusive visual indicators that don't interrupt your workflow</li>
+    </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Application-level service -->
+        <applicationService
+                serviceImplementation="com.codeawareness.pycharm.CodeAwarenessApplicationService"/>
+
+        <!-- Settings service -->
+        <applicationService
+                serviceImplementation="com.codeawareness.pycharm.settings.CodeAwarenessSettings"/>
+
+        <!-- Project-level service -->
+        <projectService
+                serviceImplementation="com.codeawareness.pycharm.CodeAwarenessProjectService"/>
+
+        <!-- Settings UI -->
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.codeawareness.pycharm.settings.CodeAwarenessConfigurable"/>
+
+        <!-- Status Bar Widget -->
+        <statusBarWidgetFactory
+                id="CodeAwarenessStatus"
+                implementation="com.codeawareness.pycharm.ui.CodeAwarenessStatusBarWidget"/>
+
+        <!-- Notification Group -->
+        <notificationGroup id="Code Awareness" displayType="BALLOON"/>
+
+        <!-- Delayed Startup Activity -->
+        <postStartupActivity
+                implementation="com.codeawareness.pycharm.startup.CodeAwarenessStartupActivity"/>
+    </extensions>
+
+    <applicationListeners>
+        <!-- File change detection -->
+        <listener
+                class="com.codeawareness.pycharm.listeners.FileChangeListener"
+                topic="com.intellij.openapi.vfs.newvfs.BulkFileListener"/>
+    </applicationListeners>
+
+    <projectListeners>
+        <!-- Active file tracking -->
+        <listener
+                class="com.codeawareness.pycharm.listeners.ActiveFileListener"
+                topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+    </projectListeners>
+
+    <actions>
+        <group id="CodeAwareness.Menu" text="Code Awareness" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+
+            <action id="CodeAwareness.Refresh"
+                    class="com.codeawareness.pycharm.ui.actions.RefreshAction"
+                    text="Refresh Highlights"
+                    description="Refresh code awareness highlights"/>
+
+            <action id="CodeAwareness.ClearHighlights"
+                    class="com.codeawareness.pycharm.ui.actions.ClearHighlightsAction"
+                    text="Clear All Highlights"
+                    description="Clear all code awareness highlights"/>
+
+            <action id="CodeAwareness.ConnectionStatus"
+                    class="com.codeawareness.pycharm.ui.actions.ConnectionStatusAction"
+                    text="Connection Status"
+                    description="Show Code Awareness connection status"/>
+        </group>
+    </actions>
+</idea-plugin>

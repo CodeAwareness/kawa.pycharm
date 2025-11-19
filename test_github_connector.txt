@@ -1,0 +1,9 @@
+GitHub Connector Test
+===================
+
+This file was created to test the GitHub App connector for kawa.pycharm repository.
+
+Timestamp: 2025-11-16
+Branch: claude/test-github-connector-01UZEMUQtwTfSh2WuBKV1A3G
+
+Test: Creating, committing, and pushing a file to verify GitHub integration.
