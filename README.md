@@ -98,7 +98,27 @@ Install IntelliJ Platform Plugin SDK
 Configure Gradle
 See DEVELOPER_GUIDE.md (coming soon)
 For Users
-The plugin is not yet available for installation. Check back soon for release updates!
+
+### Installation
+
+The plugin will be available for installation from the JetBrains Marketplace once published.
+
+**To install once available:**
+1. Open PyCharm/IntelliJ IDEA
+2. Go to `Settings/Preferences > Plugins`
+3. Click `Marketplace`
+4. Search for "Code Awareness"
+5. Click `Install`
+6. Restart the IDE
+
+**Manual Installation (Development Builds):**
+1. Download the plugin ZIP from releases
+2. Go to `Settings/Preferences > Plugins`
+3. Click the gear icon ⚙️ > `Install Plugin from Disk...`
+4. Select the downloaded ZIP file
+5. Restart the IDE
+
+**For publishing information**, see [PUBLISHING.md](PUBLISHING.md)
 
 Related Projects
 kawa.emacs - Code Awareness for Emacs

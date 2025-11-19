@@ -47,27 +47,33 @@ public class IpcConnection {
         Logger.info("Connecting to IPC service...");
 
         String ipcPath = PathUtils.getIpcSocketPath(clientGuid);
+        Logger.info("IPC socket path: " + ipcPath);
 
         // Wait for IPC socket to be available (catalog creates it)
         long maxWaitMs = 10000; // 10 seconds
+        Logger.info("Waiting for IPC socket to become available (max " + maxWaitMs + "ms)...");
         if (!SocketManager.waitForSocket(ipcPath, maxWaitMs)) {
+            Logger.error("IPC socket not available after waiting: " + ipcPath);
             throw new IOException("IPC socket not available: " + ipcPath);
         }
 
+        Logger.info("IPC socket found, creating socket manager...");
         socketManager = new SocketManager(ipcPath);
 
         try {
             // Connect to IPC socket
+            Logger.info("Attempting to connect to IPC socket...");
             socketManager.connect();
             connected.set(true);
+            Logger.info("Socket connection established to IPC service");
 
             // Start background message reader
             startMessageReader();
 
-            Logger.info("Successfully connected to IPC service");
+            Logger.info("Successfully connected to IPC service (GUID: " + clientGuid + ")");
         } catch (IOException e) {
             connected.set(false);
-            Logger.error("Failed to connect to IPC service", e);
+            Logger.error("Failed to connect to IPC service at: " + ipcPath, e);
             throw e;
         }
     }
@@ -78,21 +84,37 @@ public class IpcConnection {
     private void startMessageReader() {
         running.set(true);
         readerThread = new Thread(() -> {
-            Logger.debug("IPC message reader thread started");
+            Logger.info("IPC message reader thread started");
 
             while (running.get() && connected.get()) {
                 try {
                     // Read until delimiter
+                    Logger.debug("Waiting for message from IPC socket...");
                     String data = socketManager.readUntilDelimiter(MessageProtocol.DELIMITER);
 
                     if (data != null && !data.isEmpty()) {
+                        Logger.info("Received data from IPC socket (length: " + data.length() + " bytes)");
+                        Logger.debug("Raw IPC data: " + data.substring(0, Math.min(200, data.length())));
+
+                        // Log bytes for debugging encoding issues
+                        if (data.contains("\"hl\"")) {
+                            int hlIndex = data.indexOf("\"hl\"");
+                            int endIndex = Math.min(hlIndex + 100, data.length());
+                            String hlSection = data.substring(hlIndex, endIndex);
+                            Logger.info("HL SECTION IN RAW DATA: " + hlSection);
+                            Logger.info("HL SECTION BYTES: " + bytesToHex(hlSection.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                        }
+
                         // Parse messages
                         List<Message> messages = messageParser.parse(data + MessageProtocol.DELIMITER);
+                        Logger.info("Parsed " + messages.size() + " message(s) from IPC");
 
                         // Handle each message
                         for (Message message : messages) {
                             handleMessage(message);
                         }
+                    } else {
+                        Logger.debug("Received empty data from IPC socket");
                     }
                 } catch (IOException e) {
                     if (running.get() && connected.get()) {
@@ -100,13 +122,15 @@ public class IpcConnection {
                         // Connection lost
                         connected.set(false);
                         break;
+                    } else {
+                        Logger.debug("IPC reader stopped (running=" + running.get() + ", connected=" + connected.get() + ")");
                     }
                 } catch (Exception e) {
                     Logger.error("Unexpected error in message reader", e);
                 }
             }
 
-            Logger.debug("IPC message reader thread stopped");
+            Logger.info("IPC message reader thread stopped");
         }, "CodeAwareness-IPC-Reader");
 
         readerThread.setDaemon(true);
@@ -117,17 +141,19 @@ public class IpcConnection {
      * Handle an incoming message.
      */
     private void handleMessage(Message message) {
-        Logger.debug("Received message: " + message.getAction());
+        Logger.info("Handling message: " + message.getDomain() + ":" + message.getAction() + 
+                   " (flow: " + message.getFlow() + ")");
 
         // Try response handler first
         String handlerKey = message.getDomain() + ":" + message.getAction();
         if (responseHandlerRegistry.handle(handlerKey, message)) {
-            Logger.debug("Message handled by response handler: " + handlerKey);
+            Logger.info("Message handled by response handler: " + handlerKey);
             return;
         }
 
         // Use callback if set
         if (messageCallback != null) {
+            Logger.debug("Dispatching message to callback");
             ApplicationManager.getApplication().executeOnPooledThread(() -> {
                 try {
                     messageCallback.accept(message);
@@ -136,7 +162,7 @@ public class IpcConnection {
                 }
             });
         } else {
-            Logger.debug("No handler for message: " + message.getAction());
+            Logger.warn("No handler or callback for message: " + handlerKey);
         }
     }
 
@@ -145,12 +171,17 @@ public class IpcConnection {
      */
     public void sendMessage(Message message) throws IOException {
         if (!connected.get()) {
+            Logger.warn("Cannot send message: not connected to IPC service");
             throw new IOException("Not connected to IPC service");
         }
 
         String serialized = MessageProtocol.serialize(message);
+        Logger.info("Sending message to IPC: " + message.getDomain() + ":" + message.getAction() + 
+                   " (length: " + serialized.length() + " bytes)");
+        Logger.debug("Message details - flow: " + message.getFlow() + ", caw: " + message.getCaw());
+        
         socketManager.write(serialized);
-        Logger.debug("Sent message: " + message.getAction());
+        Logger.info("Successfully sent message: " + message.getDomain() + ":" + message.getAction());
     }
 
     /**
@@ -205,5 +236,16 @@ public class IpcConnection {
      */
     public String getClientGuid() {
         return clientGuid;
+    }
+
+    /**
+     * Helper method to convert bytes to hex string for debugging.
+     */
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02X ", b));
+        }
+        return sb.toString();
     }
 }

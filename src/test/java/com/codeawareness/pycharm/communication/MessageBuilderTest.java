@@ -1,6 +1,7 @@
 package com.codeawareness.pycharm.communication;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -67,9 +68,12 @@ class MessageBuilderTest {
         assertEquals("clientId", message.getAction());
         assertEquals(guid, message.getCaw());
 
-        JsonObject data = message.getDataAsObject();
-        assertNotNull(data);
-        assertEquals(guid, data.get("guid").getAsString());
+        // Data should be the GUID string directly (matching Emacs/VSCode format)
+        assertNotNull(message.getData());
+        assertTrue(message.getData().isJsonPrimitive(), "Data should be a JsonPrimitive (string)");
+        JsonPrimitive data = message.getData().getAsJsonPrimitive();
+        assertTrue(data.isString(), "Data should be a string");
+        assertEquals(guid, data.getAsString());
     }
 
     @Test
@@ -148,7 +152,11 @@ class MessageBuilderTest {
         assertNotNull(data);
         assertEquals(origin, data.get("origin").getAsString());
         assertEquals(filePath, data.get("fpath").getAsString());
-        assertEquals(peerGuid, data.get("peer").getAsString());
+
+        // Peer should be an object with _id field (matching Emacs/VSCode format)
+        assertTrue(data.get("peer").isJsonObject(), "Peer should be a JsonObject");
+        JsonObject peer = data.getAsJsonObject("peer");
+        assertEquals(peerGuid, peer.get("_id").getAsString());
     }
 
     @Test

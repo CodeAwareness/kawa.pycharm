@@ -27,20 +27,31 @@ public class UnixSocketAdapter implements SocketAdapter {
 
     @Override
     public void connect() throws IOException {
-        Logger.debug("Connecting to Unix socket: " + socketPath);
+        Logger.info("Connecting to Unix socket: " + socketPath);
 
         try {
+            // Check if socket file exists
+            java.io.File socketFile = new java.io.File(socketPath);
+            if (!socketFile.exists()) {
+                Logger.warn("Unix socket file does not exist: " + socketPath);
+            } else {
+                Logger.info("Unix socket file exists: " + socketPath);
+            }
+
             // Create Unix domain socket channel
+            Logger.debug("Opening Unix domain socket channel...");
             socketChannel = SocketChannel.open(StandardProtocolFamily.UNIX);
             socketChannel.configureBlocking(true);
 
             // Connect to socket
+            Logger.debug("Connecting to Unix domain socket address...");
             UnixDomainSocketAddress address = UnixDomainSocketAddress.of(Path.of(socketPath));
-            socketChannel.connect(address);
+            boolean connected = socketChannel.connect(address);
 
-            Logger.info("Connected to Unix socket: " + socketPath);
+            Logger.info("Connected to Unix socket: " + socketPath + " (connected: " + connected + ")");
         } catch (IOException e) {
             Logger.error("Failed to connect to Unix socket: " + socketPath, e);
+            Logger.error("Socket connection error details: " + e.getClass().getName() + ": " + e.getMessage());
             throw e;
         }
     }
@@ -48,17 +59,21 @@ public class UnixSocketAdapter implements SocketAdapter {
     @Override
     public void write(String message) throws IOException {
         if (socketChannel == null || !socketChannel.isConnected()) {
+            Logger.error("Cannot write: Unix socket not connected: " + socketPath);
             throw new IOException("Socket not connected");
         }
 
         byte[] bytes = message.getBytes(StandardCharsets.UTF_8);
         ByteBuffer buffer = ByteBuffer.wrap(bytes);
 
+        Logger.debug("Writing " + bytes.length + " bytes to Unix socket: " + socketPath);
+        int totalWritten = 0;
         while (buffer.hasRemaining()) {
-            socketChannel.write(buffer);
+            int written = socketChannel.write(buffer);
+            totalWritten += written;
         }
 
-        Logger.trace("Wrote " + bytes.length + " bytes to Unix socket");
+        Logger.info("Wrote " + totalWritten + " bytes to Unix socket: " + socketPath);
     }
 
     @Override

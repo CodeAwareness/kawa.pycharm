@@ -19,7 +19,7 @@ class CodeAwarenessSettingsTest {
 
     @Test
     void testDefaultValues() {
-        assertTrue(settings.isHighlightsEnabled(), "Highlights should be enabled by default");
+        assertFalse(settings.isHighlightsEnabled(), "Highlights should NOT be enabled by default");
         assertEquals(500, settings.fileSaveDebounceMs, "File save debounce should be 500ms");
         assertEquals(300, settings.activeFileDebounceMs, "Active file debounce should be 300ms");
     }
@@ -27,17 +27,17 @@ class CodeAwarenessSettingsTest {
     @Test
     void testToggleHighlights() {
         // Start with default (enabled)
-        assertTrue(settings.isHighlightsEnabled());
+        assertFalse(settings.isHighlightsEnabled());
 
         // Toggle OFF
         boolean newState = settings.toggleHighlights();
-        assertFalse(newState, "Toggle should return new state (false)");
-        assertFalse(settings.isHighlightsEnabled(), "Highlights should be disabled");
+        assertTrue(newState, "Toggle should return new state (true)");
+        assertTrue(settings.isHighlightsEnabled(), "Highlights should be enabled");
 
         // Toggle ON
         newState = settings.toggleHighlights();
-        assertTrue(newState, "Toggle should return new state (true)");
-        assertTrue(settings.isHighlightsEnabled(), "Highlights should be enabled");
+        assertFalse(newState, "Toggle should return new state (false)");
+        assertFalse(settings.isHighlightsEnabled(), "Highlights should be disabled");
     }
 
     @Test

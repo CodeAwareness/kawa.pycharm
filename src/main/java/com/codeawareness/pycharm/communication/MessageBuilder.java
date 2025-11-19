@@ -2,6 +2,7 @@ package com.codeawareness.pycharm.communication;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 /**
  * Builder for constructing Code Awareness messages.
@@ -97,10 +98,13 @@ public class MessageBuilder {
 
     /**
      * Build a clientId registration message.
+     * Matches the format used by other extensions (Emacs, VSCode):
+     * - data: the GUID string directly (not wrapped in an object)
+     * - caw: the GUID string
      */
     public static Message buildClientId(String guid) {
-        JsonObject data = new JsonObject();
-        data.addProperty("guid", guid);
+        // Send GUID as a string directly in data, matching Emacs/VSCode format
+        JsonPrimitive data = new JsonPrimitive(guid);
 
         return MessageBuilder.request()
                 .domain("*")
@@ -173,7 +177,12 @@ public class MessageBuilder {
         JsonObject data = new JsonObject();
         data.addProperty("origin", origin);
         data.addProperty("fpath", filePath);
-        data.addProperty("peer", peerGuid);
+
+        // Peer must be an object with _id field (matching Emacs/VSCode format and Gardener expectations)
+        JsonObject peer = new JsonObject();
+        peer.addProperty("_id", peerGuid);
+        data.add("peer", peer);
+
         data.addProperty("caw", guid);
 
         return MessageBuilder.request()

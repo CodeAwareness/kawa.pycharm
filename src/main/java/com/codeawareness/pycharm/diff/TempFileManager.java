@@ -54,6 +54,18 @@ public class TempFileManager {
         String tempFileName = generateTempFileName(fileName, peerName);
         File tempFile = new File(tmpDir, tempFileName);
 
+        // If file exists and is read-only, make it writable and delete it
+        if (tempFile.exists()) {
+            if (!tempFile.canWrite()) {
+                Logger.debug("Making existing temp file writable before deletion: " + tempFile.getAbsolutePath());
+                tempFile.setWritable(true);
+            }
+            if (!tempFile.delete()) {
+                Logger.warn("Failed to delete existing temp file: " + tempFile.getAbsolutePath());
+                // Try to overwrite anyway
+            }
+        }
+
         // Write content
         try (FileWriter writer = new FileWriter(tempFile)) {
             writer.write(content);
@@ -116,6 +128,10 @@ public class TempFileManager {
         String key = fileName + ":" + peerName;
         File tempFile = tempFiles.remove(key);
         if (tempFile != null && tempFile.exists()) {
+            // Make writable if read-only
+            if (!tempFile.canWrite()) {
+                tempFile.setWritable(true);
+            }
             if (tempFile.delete()) {
                 Logger.debug("Deleted temp file: " + tempFile.getAbsolutePath());
             } else {
@@ -131,6 +147,10 @@ public class TempFileManager {
         Logger.debug("Cleaning up " + tempFiles.size() + " temp files");
         for (File tempFile : tempFiles.values()) {
             if (tempFile != null && tempFile.exists()) {
+                // Make writable if read-only
+                if (!tempFile.canWrite()) {
+                    tempFile.setWritable(true);
+                }
                 if (!tempFile.delete()) {
                     Logger.warn("Failed to delete temp file: " + tempFile.getAbsolutePath());
                 }

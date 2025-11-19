@@ -41,10 +41,15 @@
 
         <!-- Status Bar Widget -->
         <statusBarWidgetFactory
+                id="CodeAwarenessStatus"
                 implementation="com.codeawareness.pycharm.ui.CodeAwarenessStatusBarWidget"/>
 
         <!-- Notification Group -->
         <notificationGroup id="Code Awareness" displayType="BALLOON"/>
+
+        <!-- Delayed Startup Activity -->
+        <postStartupActivity
+                implementation="com.codeawareness.pycharm.startup.CodeAwarenessStartupActivity"/>
     </extensions>
 
     <applicationListeners>

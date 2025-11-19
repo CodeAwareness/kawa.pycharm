@@ -74,6 +74,8 @@ public class SocketManager {
         IOException lastException = null;
         long retryDelay = INITIAL_RETRY_DELAY_MS;
 
+        Logger.info("Starting connection attempts to: " + socketPath + " (max attempts: " + maxAttempts + ")");
+
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 Logger.info("Connection attempt " + attempt + "/" + maxAttempts + " to: " + socketPath);
@@ -83,6 +85,7 @@ public class SocketManager {
             } catch (IOException e) {
                 lastException = e;
                 Logger.warn("Connection attempt " + attempt + " failed: " + e.getMessage());
+                Logger.debug("Connection failure details", e);
 
                 if (attempt < maxAttempts) {
                     try {
@@ -99,8 +102,8 @@ public class SocketManager {
         }
 
         // All attempts failed
-        String message = "Failed to connect after " + maxAttempts + " attempts";
-        Logger.error(message);
+        String message = "Failed to connect after " + maxAttempts + " attempts to: " + socketPath;
+        Logger.error(message + " (last error: " + (lastException != null ? lastException.getMessage() : "unknown") + ")");
         throw new IOException(message, lastException);
     }
 
@@ -112,9 +115,12 @@ public class SocketManager {
      */
     public void write(String message) throws IOException {
         if (!isConnected()) {
+            Logger.error("Cannot write: not connected to socket: " + socketPath);
             throw new IOException("Not connected to socket");
         }
+        Logger.debug("Writing " + message.length() + " bytes to socket: " + socketPath);
         adapter.write(message);
+        Logger.debug("Successfully wrote message to socket");
     }
 
     /**

@@ -91,8 +91,16 @@ public class ActiveFileTracker implements FileEditorManagerListener {
 
         Logger.debug("Active file changed: " + (filePath != null ? filePath : "<none>"));
 
-        // Update current active file
+        // Update current active file path
         currentActiveFile.set(filePath);
+        
+        // Update the VirtualFile in the project service
+        com.codeawareness.pycharm.CodeAwarenessProjectService projectService = 
+            project.getService(com.codeawareness.pycharm.CodeAwarenessProjectService.class);
+        if (projectService != null) {
+            projectService.setActiveFile(file);
+            Logger.debug("Updated active file in project service: " + (filePath != null ? filePath : "<none>"));
+        }
 
         // Cancel any pending notification
         Runnable existingTask = pendingNotification.getAndSet(null);

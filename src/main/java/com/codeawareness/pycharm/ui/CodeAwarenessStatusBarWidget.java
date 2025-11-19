@@ -1,7 +1,10 @@
 package com.codeawareness.pycharm.ui;
 
+import com.codeawareness.pycharm.CodeAwarenessApplicationService;
 import com.codeawareness.pycharm.CodeAwarenessProjectService;
 import com.codeawareness.pycharm.settings.CodeAwarenessSettings;
+import com.codeawareness.pycharm.utils.Logger;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.StatusBar;
 import com.intellij.openapi.wm.StatusBarWidget;
@@ -105,7 +108,9 @@ public class CodeAwarenessStatusBarWidget implements StatusBarWidgetFactory {
                 CodeAwarenessSettings settings = CodeAwarenessSettings.getInstance();
                 boolean newState = settings.toggleHighlights();
 
-                // Update highlight manager for all open projects
+                Logger.info("Code Awareness toggled to: " + (newState ? "ON" : "OFF"));
+
+                // Update highlight manager immediately (UI operation)
                 CodeAwarenessProjectService projectService =
                     project.getService(CodeAwarenessProjectService.class);
 
@@ -123,6 +128,45 @@ public class CodeAwarenessStatusBarWidget implements StatusBarWidgetFactory {
                 // Update status bar text
                 if (statusBar != null) {
                     statusBar.updateWidget(ID);
+                }
+
+                // Connect/disconnect from Gardener asynchronously (non-blocking)
+                CodeAwarenessApplicationService appService =
+                    ApplicationManager.getApplication().getService(CodeAwarenessApplicationService.class);
+
+                if (appService != null) {
+                    if (newState) {
+                        // Enable highlights - connect to Gardener asynchronously
+                        if (!appService.isConnected()) {
+                            Logger.info("Highlights enabled - connecting to Code Awareness backend asynchronously...");
+                            // Run connection on background thread to avoid blocking EDT and accessing APIs too early
+                            ApplicationManager.getApplication().executeOnPooledThread(() -> {
+                                try {
+                                    appService.connect();
+                                    Logger.info("Successfully connected to Code Awareness backend");
+                                    
+                                    // Update status bar on EDT after successful connection
+                                    ApplicationManager.getApplication().invokeLater(() -> {
+                                        if (statusBar != null) {
+                                            statusBar.updateWidget(ID);
+                                        }
+                                    });
+                                } catch (Exception e) {
+                                    Logger.error("Failed to connect to Code Awareness backend when enabling highlights", e);
+                                    // Don't throw - allow highlights to be enabled even if connection fails
+                                    // The connection might fail if Gardener is not running, which is OK
+                                }
+                            });
+                        } else {
+                            Logger.info("Already connected to Code Awareness backend");
+                        }
+                    } else {
+                        // Disable highlights - optionally disconnect (or keep connection for other features)
+                        Logger.info("Highlights disabled (keeping connection active)");
+                        // Note: We don't disconnect here to allow re-enabling without reconnection overhead
+                    }
+                } else {
+                    Logger.warn("Code Awareness Application Service not available");
                 }
             };
         }

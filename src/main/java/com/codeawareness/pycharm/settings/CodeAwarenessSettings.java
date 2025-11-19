@@ -23,8 +23,9 @@ public final class CodeAwarenessSettings implements PersistentStateComponent<Cod
     /**
      * Whether Code Awareness highlighting is enabled (ON/OFF).
      * When OFF, highlights are hidden and not displayed.
+     * Default is OFF - user must explicitly enable it via status bar widget.
      */
-    public boolean highlightsEnabled = true;
+    public boolean highlightsEnabled = false;
 
     /**
      * Debounce delay for file save notifications (milliseconds).

@@ -85,8 +85,6 @@ public class HighlightManager {
                 // Store highlighter
                 highlightersByFile.computeIfAbsent(filePath, k -> new ArrayList<>()).add(highlighter);
 
-                Logger.debug("Added highlight: " + filePath + ":" + lineNumber);
-
             } catch (Exception e) {
                 Logger.warn("Failed to add highlight", e);
             }

@@ -32,6 +32,12 @@ intellij {
     plugins.set(listOf())
 }
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
 tasks {
     withType<JavaCompile> {
         sourceCompatibility = "17"
@@ -44,7 +50,23 @@ tasks {
 
     patchPluginXml {
         sinceBuild.set("233")
-        untilBuild.set("242.*")
+        untilBuild.set(provider { null })
+        
+        // Plugin version (uses project.version by default)
+        version.set(project.version.toString())
+        
+        // Change notes for marketplace (update for each release)
+        changeNotes.set("""
+            <h3>Initial Release - 1.0.0</h3>
+            <ul>
+                <li>Real-time peer code highlighting - See which lines your teammates are modifying</li>
+                <li>Conflict detection - Identify merge conflicts before they happen</li>
+                <li>Overlap detection - Find overlapping changes across team members</li>
+                <li>Side-by-side diff viewing - Compare your code with teammates' versions</li>
+                <li>Branch comparison - Compare your working copy against other branches</li>
+                <li>Low-noise design - Non-intrusive visual indicators</li>
+            </ul>
+        """.trimIndent())
     }
 
     signPlugin {

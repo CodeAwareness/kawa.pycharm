@@ -4,19 +4,24 @@ import com.codeawareness.pycharm.communication.Message;
 import com.codeawareness.pycharm.utils.Logger;
 import com.intellij.openapi.application.ApplicationManager;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Event dispatcher for routing incoming messages to registered handlers.
  * Handlers are registered by action and invoked asynchronously on background threads.
+ * Supports multiple handlers per action to handle multi-project scenarios.
  */
 public class EventDispatcher {
 
-    private final Map<String, EventHandler> handlers = new ConcurrentHashMap<>();
+    private final Map<String, List<EventHandler>> handlers = new ConcurrentHashMap<>();
 
     /**
      * Register an event handler.
+     * Supports multiple handlers per action to handle multi-project scenarios.
      *
      * @param handler The handler to register
      */
@@ -32,30 +37,59 @@ public class EventDispatcher {
             return;
         }
 
-        handlers.put(action, handler);
-        Logger.debug("Registered event handler: " + action);
+        // Use CopyOnWriteArrayList for thread-safe iteration while handlers are being invoked
+        handlers.computeIfAbsent(action, k -> new CopyOnWriteArrayList<>()).add(handler);
+
+        int handlerCount = handlers.get(action).size();
+        Logger.info("Registered event handler: " + action + " (" + handler.getClass().getSimpleName() +
+                   ") - total handlers for this action: " + handlerCount);
     }
 
     /**
-     * Unregister an event handler.
+     * Unregister a specific event handler instance.
      *
-     * @param action The action to unregister
+     * @param handler The handler instance to unregister
      */
-    public void unregisterHandler(String action) {
-        if (action != null) {
-            EventHandler removed = handlers.remove(action);
-            if (removed != null) {
-                Logger.debug("Unregistered event handler: " + action);
+    public void unregisterHandler(EventHandler handler) {
+        if (handler == null || handler.getAction() == null) {
+            return;
+        }
+
+        String action = handler.getAction();
+        List<EventHandler> handlerList = handlers.get(action);
+        if (handlerList != null) {
+            boolean removed = handlerList.remove(handler);
+            if (removed) {
+                Logger.info("Unregistered event handler: " + action + " (" + handler.getClass().getSimpleName() +
+                           ") - remaining handlers: " + handlerList.size());
+                // Clean up empty lists
+                if (handlerList.isEmpty()) {
+                    handlers.remove(action);
+                }
             }
         }
     }
 
     /**
-     * Dispatch a message to the appropriate handler.
-     * Handler is invoked asynchronously on a background thread.
+     * Unregister all handlers for a specific action.
+     *
+     * @param action The action to unregister
+     */
+    public void unregisterAllHandlers(String action) {
+        if (action != null) {
+            List<EventHandler> removed = handlers.remove(action);
+            if (removed != null) {
+                Logger.debug("Unregistered all event handlers for action: " + action + " (count: " + removed.size() + ")");
+            }
+        }
+    }
+
+    /**
+     * Dispatch a message to the appropriate handlers.
+     * All matching handlers are invoked asynchronously on background threads.
      *
      * @param message The message to dispatch
-     * @return true if a handler was found and invoked, false otherwise
+     * @return true if at least one handler was found and invoked, false otherwise
      */
     public boolean dispatch(Message message) {
         if (message == null) {
@@ -63,44 +97,56 @@ public class EventDispatcher {
             return false;
         }
 
-        // Try to find handler by full action key (domain:action)
+        // Try to find handlers by full action key (domain:action)
         String fullAction = message.getDomain() != null
                 ? message.getDomain() + ":" + message.getAction()
                 : message.getAction();
 
-        EventHandler handler = handlers.get(fullAction);
+        List<EventHandler> matchedHandlers = new ArrayList<>();
 
-        // Fallback to action only
-        if (handler == null && message.getAction() != null) {
-            handler = handlers.get(message.getAction());
+        // Try full action key first
+        List<EventHandler> handlerList = handlers.get(fullAction);
+        if (handlerList != null && !handlerList.isEmpty()) {
+            matchedHandlers.addAll(handlerList);
         }
 
-        // Try canHandle method on all handlers
-        if (handler == null) {
-            for (EventHandler h : handlers.values()) {
-                if (h.canHandle(message)) {
-                    handler = h;
-                    break;
+        // Fallback to action only if no full action match
+        if (matchedHandlers.isEmpty() && message.getAction() != null) {
+            handlerList = handlers.get(message.getAction());
+            if (handlerList != null && !handlerList.isEmpty()) {
+                matchedHandlers.addAll(handlerList);
+            }
+        }
+
+        // Try canHandle method on all handlers if still no match
+        if (matchedHandlers.isEmpty()) {
+            for (List<EventHandler> hList : handlers.values()) {
+                for (EventHandler h : hList) {
+                    if (h.canHandle(message)) {
+                        matchedHandlers.add(h);
+                    }
                 }
             }
         }
 
-        if (handler == null) {
-            Logger.debug("No handler found for message: " + message.getAction());
+        if (matchedHandlers.isEmpty()) {
+            Logger.warn("No handler found for message: " + fullAction + " (domain: " + message.getDomain() + ", action: " + message.getAction() + ", flow: " + message.getFlow() + ")");
             return false;
         }
 
-        // Invoke handler asynchronously
-        final EventHandler finalHandler = handler;
-        ApplicationManager.getApplication().executeOnPooledThread(() -> {
-            try {
-                Logger.debug("Dispatching message to handler: " + finalHandler.getAction());
-                finalHandler.handle(message);
-            } catch (Exception e) {
-                Logger.warn("Error in event handler: " + finalHandler.getAction() + " - " + e.getMessage());
-                Logger.debug("Handler exception details", e);
-            }
-        });
+        // Invoke all matched handlers asynchronously
+        Logger.info("Dispatching message to " + matchedHandlers.size() + " handler(s) for: " + fullAction);
+        for (EventHandler handler : matchedHandlers) {
+            final EventHandler finalHandler = handler;
+            Logger.info("  -> Invoking handler: " + finalHandler.getClass().getSimpleName());
+            ApplicationManager.getApplication().executeOnPooledThread(() -> {
+                try {
+                    finalHandler.handle(message);
+                } catch (Exception e) {
+                    Logger.error("Error in event handler: " + finalHandler.getAction() + " (" + finalHandler.getClass().getSimpleName() + ")", e);
+                }
+            });
+        }
 
         return true;
     }
@@ -115,16 +161,32 @@ public class EventDispatcher {
     }
 
     /**
-     * Get the number of registered handlers.
+     * Get the total number of registered handler instances across all actions.
      */
     public int size() {
+        return handlers.values().stream().mapToInt(List::size).sum();
+    }
+
+    /**
+     * Get the number of unique actions with handlers registered.
+     */
+    public int actionCount() {
         return handlers.size();
     }
 
     /**
-     * Check if a handler is registered for an action.
+     * Check if any handler is registered for an action.
      */
     public boolean hasHandler(String action) {
-        return handlers.containsKey(action);
+        List<EventHandler> handlerList = handlers.get(action);
+        return handlerList != null && !handlerList.isEmpty();
+    }
+
+    /**
+     * Get the number of handlers registered for a specific action.
+     */
+    public int getHandlerCount(String action) {
+        List<EventHandler> handlerList = handlers.get(action);
+        return handlerList != null ? handlerList.size() : 0;
     }
 }

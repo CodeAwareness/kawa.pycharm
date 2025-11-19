@@ -12,8 +12,8 @@ import java.awt.Color;
  */
 public class ColorSchemeProvider {
 
-    private static final Color LIGHT_THEME_COLOR = new Color(0xff, 0xdd, 0x34);
-    private static final Color DARK_THEME_COLOR = new Color(0x1f, 0x1c, 0xc2);
+    private static final Color LIGHT_THEME_COLOR = new Color(0xff, 0xea, 0x83);
+    private static final Color DARK_THEME_COLOR = new Color(0x0a, 0x07, 0x1d);
 
     /**
      * Get the highlight color for the current theme.

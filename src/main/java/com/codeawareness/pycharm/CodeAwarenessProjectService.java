@@ -4,9 +4,12 @@ import com.codeawareness.pycharm.communication.Message;
 import com.codeawareness.pycharm.communication.MessageBuilder;
 import com.codeawareness.pycharm.diff.DiffViewerManager;
 import com.codeawareness.pycharm.diff.TempFileManager;
+import com.codeawareness.pycharm.events.EventHandler;
+import com.codeawareness.pycharm.events.handlers.ActivePathHandler;
 import com.codeawareness.pycharm.events.handlers.AuthInfoHandler;
 import com.codeawareness.pycharm.events.handlers.BranchSelectHandler;
 import com.codeawareness.pycharm.events.handlers.DiffPeerHandler;
+import com.codeawareness.pycharm.events.handlers.OpenPeerFileHandler;
 import com.codeawareness.pycharm.events.handlers.PeerSelectHandler;
 import com.codeawareness.pycharm.events.handlers.PeerUnselectHandler;
 import com.codeawareness.pycharm.highlighting.HighlightManager;
@@ -21,6 +24,8 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -46,6 +51,7 @@ public final class CodeAwarenessProjectService implements Disposable {
     private String userEmail;
     private String tmpDir;
     private final Map<String, Object> highlighters = new ConcurrentHashMap<>();
+    private final List<EventHandler> registeredHandlers = new ArrayList<>();
 
     public CodeAwarenessProjectService(Project project) {
         this.project = project;
@@ -71,14 +77,33 @@ public final class CodeAwarenessProjectService implements Disposable {
             ApplicationManager.getApplication().getService(CodeAwarenessApplicationService.class);
 
         if (appService != null) {
-            // Register handlers for this project
-            appService.getEventDispatcher().registerHandler(new AuthInfoHandler(project));
-            appService.getEventDispatcher().registerHandler(new PeerSelectHandler(project));
-            appService.getEventDispatcher().registerHandler(new PeerUnselectHandler(project));
-            appService.getEventDispatcher().registerHandler(new BranchSelectHandler(project));
-            appService.getEventDispatcher().registerHandler(new DiffPeerHandler(project, diffViewerManager));
+            // Create and register handlers for this project
+            EventHandler authInfoHandler = new AuthInfoHandler(project);
+            EventHandler peerSelectHandler = new PeerSelectHandler(project);
+            EventHandler peerUnselectHandler = new PeerUnselectHandler(project);
+            EventHandler branchSelectHandler = new BranchSelectHandler(project);
+            EventHandler diffPeerHandler = new DiffPeerHandler(project, diffViewerManager);
+            EventHandler activePathHandler = new ActivePathHandler(project, highlightManager);
+            EventHandler openPeerFileHandler = new OpenPeerFileHandler(project, diffViewerManager);
 
-            Logger.debug("Registered event handlers for project: " + project.getName());
+            appService.getEventDispatcher().registerHandler(authInfoHandler);
+            appService.getEventDispatcher().registerHandler(peerSelectHandler);
+            appService.getEventDispatcher().registerHandler(peerUnselectHandler);
+            appService.getEventDispatcher().registerHandler(branchSelectHandler);
+            appService.getEventDispatcher().registerHandler(diffPeerHandler);
+            appService.getEventDispatcher().registerHandler(activePathHandler);
+            appService.getEventDispatcher().registerHandler(openPeerFileHandler);
+
+            // Keep references to unregister later
+            registeredHandlers.add(authInfoHandler);
+            registeredHandlers.add(peerSelectHandler);
+            registeredHandlers.add(peerUnselectHandler);
+            registeredHandlers.add(branchSelectHandler);
+            registeredHandlers.add(diffPeerHandler);
+            registeredHandlers.add(activePathHandler);
+            registeredHandlers.add(openPeerFileHandler);
+
+            Logger.info("Registered " + registeredHandlers.size() + " event handlers for project: " + project.getName());
         }
     }
 
@@ -235,6 +260,19 @@ public final class CodeAwarenessProjectService implements Disposable {
     @Override
     public void dispose() {
         Logger.info("Disposing Code Awareness Project Service for project: " + project.getName());
+
+        // Unregister event handlers
+        CodeAwarenessApplicationService appService =
+            ApplicationManager.getApplication().getService(CodeAwarenessApplicationService.class);
+
+        if (appService != null && !registeredHandlers.isEmpty()) {
+            Logger.info("Unregistering " + registeredHandlers.size() + " event handlers for project: " + project.getName());
+            for (EventHandler handler : registeredHandlers) {
+                appService.getEventDispatcher().unregisterHandler(handler);
+            }
+            registeredHandlers.clear();
+        }
+
         clearHighlighters();
         highlightManager.clearAllHighlights();
         diffViewerManager.cleanupAll();

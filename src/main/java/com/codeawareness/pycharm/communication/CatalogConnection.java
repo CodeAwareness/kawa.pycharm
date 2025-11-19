@@ -27,20 +27,23 @@ public class CatalogConnection {
         Logger.info("Connecting to catalog service...");
 
         String catalogPath = PathUtils.getCatalogSocketPath();
+        Logger.info("Catalog socket path: " + catalogPath);
         socketManager = new SocketManager(catalogPath);
 
         try {
             // Connect to catalog socket with retry
+            Logger.info("Attempting to connect to catalog socket...");
             socketManager.connect();
             connected = true;
+            Logger.info("Socket connection established to catalog");
 
             // Register client with catalog
             registerClient();
 
-            Logger.info("Successfully connected and registered with catalog service");
+            Logger.info("Successfully connected and registered with catalog service (GUID: " + clientGuid + ")");
         } catch (IOException e) {
             connected = false;
-            Logger.error("Failed to connect to catalog service", e);
+            Logger.error("Failed to connect to catalog service at: " + catalogPath, e);
             throw e;
         }
     }
@@ -49,11 +52,12 @@ public class CatalogConnection {
      * Register this client with the catalog service.
      */
     private void registerClient() throws IOException {
-        Logger.debug("Registering client with catalog: " + clientGuid);
+        Logger.info("Registering client with catalog: " + clientGuid);
 
         Message message = MessageBuilder.buildClientId(clientGuid);
         String serialized = MessageProtocol.serialize(message);
 
+        Logger.info("Sending clientId message to catalog (length: " + serialized.length() + " bytes)");
         socketManager.write(serialized);
         Logger.info("Client registered with catalog: " + clientGuid);
     }
